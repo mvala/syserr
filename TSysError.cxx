@@ -278,25 +278,30 @@ void TSysError::Calculate()
    if (fGraph) {
       fGraph->Print();
 
-      // // calculate mean
-      // ySum = 0.0;
-      // eySum = 0.0;
-      // for (Int_t i = 0; i < nBins; i++) {
-      //    gr->GetPoint(i, x, y);
-      //    ex = gr->GetErrorX(i);
-      //    ey = gr->GetErrorY(i);
-      //    ySum += y;
-      //    eySum += TMath::Power(ey, 2);
-      // }
-      // nBins = fGraph->GetN();
-      // yMean = ySum / nBins;
-      // eyMean = TMath::Sqrt(eySum / (nBins - 1));
-      // Printf("TODO mean(yMean)=%f error(eyMean)=%f", yMean, eyMean);
+      // setting number of bins
+      nBins = fGraph->GetN();
 
-      // // TODO - Kukni se do knizky
-      // fMean = yMean;
-      // fSigma = TMath::Sqrt(eySum);
-      // fAlpha = fSigma / TMath::Sqrt(nBins - 1);
+      // calculate mean
+      ySum = 0.0;
+      eySum = 0.0;
+      wSum = 0.0;
+      for (Int_t i = 0; i < nBins; i++) {
+         gr->GetPoint(i, x, y);
+         ex = gr->GetErrorX(i);
+         ey = gr->GetErrorY(i);
+         w = 1 / TMath::Power(ey, 2);
+         ySum += y * w;
+         wSum += w;
+         eySum += 1 / TMath::Power(ey, 2);
+      }
+      yMean = ySum / wSum;
+      eyMean = 1 / TMath::Sqrt(eySum);
+      // TODO - Kukni se do knizky
+      fMean = yMean;
+      // we will not calculate sigma for now
+      fSigma = -1.0;
+      fAlpha = eyMean;
+      Printf("TODO mean(fMean)=%e error(fAlpha)=%e", fMean, fAlpha);
 
    }
 
