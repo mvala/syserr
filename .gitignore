@@ -1,13 +1,33 @@
-# Compiled Object files
-*.slo
-*.lo
+# Object files
 *.o
 
-# Compiled Dynamic libraries
+# Libraries
+*.lib
+*.a
+*.d
+
+# Shared objects (inc. Windows DLLs)
+*.dll
 *.so
+*.so.*
 *.dylib
 
-# Compiled Static libraries
-*.lai
-*.la
-*.a
+# Executables
+*.exe
+*.out
+*.app
+
+bin
+lib
+build
+.settings
+
+# emacs ide
+.emacs.desktop
+.emacs-ide-project.txt
+TAGS
+cscope.files
+*.lock
+
+*#
+
