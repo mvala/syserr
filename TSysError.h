@@ -15,7 +15,7 @@ public:
 private:
 
 
-   ClassDef(TSysError,1);
+   ClassDef(TSysError, 1);
 
 
 }
