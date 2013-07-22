@@ -15,8 +15,10 @@ public:
    TSysError(const char *name, const char *title);
    ~TSysError();
 
-   TList            *GetList() { return fList; }
-   TGraphErrors     *GetGraph() { return fGraph; }
+   TList            *GetList() const { return fList; }
+   TGraphErrors     *GetGraph() const { return fGraph; }
+   void              SetUseWeight(Bool_t useWeight){ fUseWeight = useWeight; }
+   void              SetDelta(Double_t delta) { fDelta = delta; }
    void              SetGraph(TGraphErrors *gr, Bool_t doClone = kFALSE);
    void              Add(TSysError *sysError);
    Bool_t            AddGraph(const char *filename, const char *tmpl = "%lg %lg %lg");
@@ -25,12 +27,15 @@ public:
    void              Calculate();
 
 private:
-   TList             *fList;
-   TGraphErrors      *fGraph;
+   TList             *fList;      // list of TSysError 
+   TGraphErrors      *fGraph;     // pointer to current graph
 
-   Double_t           fMean;    // mean value
-   Double_t           fSigma;   // sigma
-   Double_t           fAlpha;   // alpha (sigma/sqrt(N))
+   Bool_t             fUseWeight; // flag to use weight (it is used when possible)
+   Double_t           fMean;      // mean value
+   Double_t           fSigma;     // sigma
+   Double_t           fAlpha;     // alpha (sigma/sqrt(N))
+
+   Double_t           fDelta;  // small value used for coparison of 2 doubles
 
    ClassDef(TSysError, 1);
 };
