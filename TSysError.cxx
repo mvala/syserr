@@ -229,7 +229,13 @@ void TSysError::Calculate()
             ey = gr->GetErrorY(i);
             ySum += y;
          }
-         nMeasurements++;
+         
+         if ((y<fDelta) && (ey < fDelta)) {
+            ySum = 0.0;
+         } else {
+            nMeasurements++;
+         }
+
       }
 
       // calculate mean, in case we are not doing weights
@@ -247,12 +253,13 @@ void TSysError::Calculate()
 
          Printf("[%d] x=%f y=%f ex=%f ey=%f", i, x, y, ex, ey);
 
+         if ((y<fDelta) && (ey < fDelta)) {
+            break;
+         }
+
          // calculating sums and weight
          if (fUseWeight) {
             // if y and ey are zero we break
-            if ((y<fDelta) && (ey < fDelta)) {
-               break;
-            }
             w = 1 / TMath::Power(ey, 2);
             ySum += y * w;
             wSum += w;
@@ -276,6 +283,12 @@ void TSysError::Calculate()
          eyMean = 1 / TMath::Sqrt(eySum);
       } else {
          // yMean is already calculated
+
+         if ((ySum<fDelta) && (eySum < fDelta)) {
+            fGraph->SetPoint(i, x, 0.0);
+            fGraph->SetPointError(i, ex, 0.0);
+            continue;
+         }
 
          // here sigma=sqrt((1/N-1)*sum(d^2))
          eyMean = TMath::Sqrt(eySum / (nMeasurements - 1));
