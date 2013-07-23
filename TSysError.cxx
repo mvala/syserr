@@ -143,7 +143,6 @@ Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, con
 
    }
 
-   Printf("%s", out.Data());
    TObjArray *t = out.Tokenize("\n");
    TObjString *so;
    TString s;
@@ -191,6 +190,7 @@ void TSysError::Calculate()
    // check if we have only 1 graph in list (then we just clone it to fGraph)
    if (fList->GetEntries() == 1) {
       ::Warning("TSysError::Calculate", "Only 1 graph in list !!! Just cloning it to current one ...");
+      fGraph->Print();
       return;
    }
 
@@ -198,14 +198,15 @@ void TSysError::Calculate()
    for (Int_t i = 0; i < nBins; i++) {
       fGraph->GetPoint(i, x, y);
       fGraph->SetPoint(i, x, 0.0);
-      if (fGraph->GetErrorY(i) < fDelta) {
+      
+      if ((y>fDelta) && (fGraph->GetErrorY(i) < fDelta)) {
          fUseWeight = kFALSE;
       }
       fGraph->SetPointError(i, fGraph->GetErrorX(i), 0.0);
    }
 
    if (!fUseWeight) {
-      ::Warning("TSysError::Calculate", "Not using weights for calculating errors");
+      ::Warning("TSysError::Calculate", "Calculating without weights !!!");
       w = 1.0;
    }
 
@@ -242,10 +243,16 @@ void TSysError::Calculate()
          gr->GetPoint(i, x, y);
          ex = gr->GetErrorX(i);
          ey = gr->GetErrorY(i);
+
+
          Printf("[%d] x=%f y=%f ex=%f ey=%f", i, x, y, ex, ey);
 
          // calculating sums and weight
          if (fUseWeight) {
+            // if y and ey are zero we break
+            if ((y<fDelta) && (ey < fDelta)) {
+               break;
+            }
             w = 1 / TMath::Power(ey, 2);
             ySum += y * w;
             wSum += w;
@@ -259,6 +266,12 @@ void TSysError::Calculate()
 
       // doing final calculation
       if (fUseWeight) {
+         // if ySum or eySum is zero (we continue)
+         if ((ySum<fDelta) && (eySum < fDelta)) {
+            fGraph->SetPoint(i, x, 0.0);
+            fGraph->SetPointError(i, ex, 0.0);
+            continue;
+         }
          yMean = ySum / wSum;
          eyMean = 1 / TMath::Sqrt(eySum);
       } else {
@@ -289,6 +302,7 @@ void TSysError::Calculate()
          gr->GetPoint(i, x, y);
          ex = gr->GetErrorX(i);
          ey = gr->GetErrorY(i);
+         if ((y<fDelta) && (ey < fDelta)) continue;
          w = 1 / TMath::Power(ey, 2);
          ySum += y * w;
          wSum += w;
