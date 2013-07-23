@@ -128,7 +128,7 @@ Bool_t TSysError::AddGraph(const char *filename, const char *tmpl)
 Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, const char *tmpl)
 {
 
-   const char *pwd = gSystem->WorkingDirectory();
+  TString pwd = gSystem->WorkingDirectory();
 
    if (!gSystem->ChangeDirectory(dirname)) {
       ::Error("TSysError::AddGraphDirectory",
@@ -152,7 +152,7 @@ Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, con
       AddGraph(s.Data(), tmpl);
    }
 
-   gSystem->ChangeDirectory(pwd);
+   gSystem->ChangeDirectory(pwd.Data());
 
    return kTRUE;
 }
@@ -176,7 +176,7 @@ void TSysError::Calculate()
       }
    }
 
-   Printf("TSysError::Calculate for %s ...", GetName());
+   ::Info("TSysError::Calculate", "%s ...", GetName());
 
    // recreating current graph
    if (fGraph) { delete fGraph; fGraph = 0;}
@@ -260,7 +260,7 @@ void TSysError::Calculate()
          } else {
             // yMean is already calculated
             // here we calculate sigma instead of alpha
-            eySum += TMath::Power(ey - yMean, 2);
+            eySum += TMath::Power(y - yMean, 2);
          }
       }
 
