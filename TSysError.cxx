@@ -8,18 +8,18 @@
 #include <TString.h>
 #include <TObjString.h>
 #include <TMath.h>
+#include <TH1.h>
+#include "TSysErrorUtils.h"
+
 #include "TSysError.h"
 
-ClassImp(TSysError);
+ClassImp(TSysError)
 
 TSysError::TSysError() : TNamed(),
    fList(0),
    fGraph(0),
-   fUseWeight(kTRUE),
-   fMean(0.0),
-   fSigma(0.0),
-   fAlpha(0.0),
-   fDelta(1e-6)
+   fHist(0),
+   fType(kNone)
 {
 
 }
@@ -27,11 +27,8 @@ TSysError::TSysError() : TNamed(),
 TSysError::TSysError(const char *name, const char *title) : TNamed(name, title),
    fList(0),
    fGraph(0),
-   fUseWeight(kTRUE),
-   fMean(0.0),
-   fSigma(0.0),
-   fAlpha(0.0),
-   fDelta(1e-6)
+   fHist(0),
+   fType(kNone)
 {
 
 }
@@ -39,14 +36,12 @@ TSysError::TSysError(const char *name, const char *title) : TNamed(name, title),
 TSysError::~TSysError()
 {
 
-   // deleting list
-   fList->Delete();
+   // clearing list
+   fList->Clear();
 
    delete fList;
    delete fGraph;
-
-   // we don't delete parent
-   // delete fParent
+   delete fHist;
 
 }
 
@@ -91,33 +86,17 @@ Bool_t TSysError::AddGraph(const char *filename, const char *tmpl)
    // create list if it was not created yet
    if (!fList) fList = new TList();
 
-   // check if graph has same binning as first
-   if (fList->GetEntries() > 0) {
-      TSysError *se = (TSysError *) fList->At(0);
-      TGraphErrors *grFirst = se->GetGraph();
-      Double_t *x0 = grFirst->GetX();
-      Double_t *x1 = gr->GetX();
-      Double_t *ex0 = grFirst->GetEX();
-      Double_t *ex1 = gr->GetEX();
-
-      Double_t dx, dex;
-      for (Int_t i = 0; i < grFirst->GetN(); i++) {
-         dx = TMath::Abs(x0[i] - x1[i]);
-         dex = TMath::Abs(ex0[i] - ex1[i]);
-         // Printf("dx=%f dex=%f", dx, dex);
-         if ((dx > fDelta) || (dex > fDelta)) {
-            ::Error("TSysError::AddGraph",
-                    TString::Format("Graph from '%s' doesn't have same binning "
-                                    "as first graph in list !!! Skipping ...",
-                                    filename).Data());
-            delete gr;
-            return kFALSE;
-         }
-      }
-   }
+   gr->SetName(TString::Format("%s_gr%03d",GetName(),fList->GetEntries()+1).Data());
 
    TSysError *se = new TSysError();
    se->SetGraph(gr);
+
+   // TODO flag for useEY
+   TH1D *h = TSysErrorUtils::Graph2Hist(gr, kFALSE);
+   if (fHist) delete fHist;
+   fHist = h;
+
+   Printf("Adding fGraph='%s' and fHist=%s", gr->GetName(), h->GetName());
 
    // adding TSysError to the list
    fList->Add(se);
@@ -128,7 +107,7 @@ Bool_t TSysError::AddGraph(const char *filename, const char *tmpl)
 Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, const char *tmpl)
 {
 
-  TString pwd = gSystem->WorkingDirectory();
+   TString pwd = gSystem->WorkingDirectory();
 
    if (!gSystem->ChangeDirectory(dirname)) {
       ::Error("TSysError::AddGraphDirectory",
@@ -157,179 +136,125 @@ Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, con
    return kTRUE;
 }
 
-void TSysError::Calculate()
-{
-   // we end calculate when there is nothing to calculate
-   if ((!fList) || (!fList->GetEntries())) return;
+void TSysError::SetTypeToList(TSysError::EType type) {
+      TSysError *se;
+      TIter next(fList);
+      while ((se = (TSysError *) next())) se->SetType(type);
+}
 
-   TIter next(fList);
-   TSysError *se;
-   TGraphErrors *gr;
-   Double_t x, y, ex, ey, w;
-   Double_t ySum, eySum, wSum;
-   Double_t yMean, eyMean;
-   Int_t nBins, nMeasurements;
 
-   if (!fGraph) {
-      while ((se = (TSysError *) next())) {
-         se->Calculate();
-      }
+
+Double_t TSysError::Calculate() {
+
+   
+   switch (fType) {
+      case kMean:
+         // Calcularte Mean
+         return CalculateMean();
+         break;
+      default:
+         TSysError *se;
+         TIter next(fList);
+         while ((se = (TSysError *) next())) {
+            se->Calculate();
+         }
+         break;
    }
 
-   ::Info("TSysError::Calculate", "%s ...", GetName());
+   return 0.0;
+}
 
-   // recreating current graph
-   if (fGraph) { delete fGraph; fGraph = 0;}
+Double_t TSysError::CalculateMean() {
 
-   se = (TSysError *) fList->At(0);
-   if (se->GetGraph()) {
-      fGraph = (TGraphErrors *) se->GetGraph()->Clone();
-      nBins = fGraph->GetN();
+   if (fHist) {
+      return 0.0;
+   } else {
+      // TSysError *se;
+      // TIter next(fList);
+      // Double_t arr[fList->GetEntries()];
+      // Int_t i = 0;
+      // Int_t n = 0;
+      // while ((se = (TSysError *) next())) {
+      //    arr[i] = se->CalculateMean();
+      //    sum += arr[i];
+      //    i++;
+      //    n++;
+      // }
+
+      return 0.0;
    }
 
-   // check if we have only 1 graph in list (then we just clone it to fGraph)
-   if (fList->GetEntries() == 1) {
-      ::Warning("TSysError::Calculate", "Only 1 graph in list !!! Just cloning it to current one ...");
-      fGraph->Print();
-      return;
-   }
-
-   // reseting y and ey of fGraph (current final graph)
-   for (Int_t i = 0; i < nBins; i++) {
-      fGraph->GetPoint(i, x, y);
-      fGraph->SetPoint(i, x, 0.0);
+   
+   // if (fGraph) {
       
-      if ((y>fDelta) && (fGraph->GetErrorY(i) < fDelta)) {
-         fUseWeight = kFALSE;
-      }
-      fGraph->SetPointError(i, fGraph->GetErrorX(i), 0.0);
-   }
+   //    Int_t i;
+   //    Double_t x, y;
+   //    // Double_t ex, ey;
+   //    Double_t sumXY = 0.0;
+   //    Double_t sumY = 0.0;
+   //    Int_t n = fGraph->GetN();
+   //    for (i=0; i<n; i++) {
+   //       fGraph->GetPoint(i, x, y);
+   //       // ex = fGraph->GetErrorX(i);
+   //       // ey = fGraph->GetErrorY(i);
+   //       Printf("x=%f y=%f x*y=%f", x, y, x*y);
+   //       sumXY += x*y;
+   //       sumY += y;
+   //    }
+   //    Double_t mean = sumXY/sumY;
+   //    Printf("Mean is %f", mean);
 
-   if (!fUseWeight) {
-      ::Warning("TSysError::Calculate", "Calculating without weights !!!");
-      w = 1.0;
-   }
+   //    Double_t sumD = 0.0;
+   //    for (i=0; i<n; i++) {
+   //       fGraph->GetPoint(i, x, y);
+   //       // ex = fGraph->GetErrorX(i);
+   //       // ey = fGraph->GetErrorY(i);
+   //       Printf("x=%f mean=%f d^2=%f", x, mean, TMath::Power(x-mean,2));
+   //       sumD += TMath::Power(x-mean,2);
+   //    }
+   //    Double_t sigma = 0.0;
+   //    Double_t alpha = 0.0;
+   //    if (n > 1) {
+   //       sigma =  TMath::Sqrt(sumD/(n-1));
+   //       alpha = sigma/TMath::Sqrt(n);
+   //    }
+   //    Printf("Sigma is %f", sigma);
+   //    Printf("Alpha is %f", alpha);
+   //    return mean;
+      
+   // } else {
+   //    Double_t sum = 0.0;
+   //    TSysError *se;
+   //    TIter next(fList);
+   //    Double_t arr[fList->GetEntries()];
+   //    Int_t i = 0;
+   //    Int_t n = 0;
+   //    while ((se = (TSysError *) next())) {
+   //       arr[i] = se->CalculateMean();
+   //       sum += arr[i];
+   //       i++;
+   //       n++;
+   //    }
 
-   // loop over points (bins)
-   for (Int_t i = 0; i < nBins; i++) {
-      // reset tmp values and iter
-      ySum = 0.0;
-      eySum = 0.0;
-      wSum = 0.0;
-      nMeasurements = 0;
+   //    Double_t mean = sum/n;
+   //    Printf("Mean of means is %f", mean);
+   //    i = 0;
+   //    next.Reset();
+   //    while ((se = (TSysError *) next())) {
+   //       Printf("%f", TMath::Power(arr[i]-mean,2));
+   //       sum += TMath::Power(arr[i++]-mean,2);
+   //    }
+      
+   //    Double_t sigma = 0.0;
+   //    Double_t alpha = 0.0;
+   //    if (n > 1) {
+   //       sigma =  TMath::Sqrt(sum/(n-1));
+   //       alpha = sigma/TMath::Sqrt(n);
+   //    }
+   //    Printf("Sigma of means is %f", sigma);
+   //    Printf("Alpha of means is %f", alpha);
+   //    return mean;
+   // }
 
-      // loop over graphs to calculate mean value
-      next.Reset();
-      while ((se = (TSysError *) next())) {
-         if (!fUseWeight) {
-            // let's get points
-            gr = se->GetGraph();
-            gr->GetPoint(i, x, y);
-            ex = gr->GetErrorX(i);
-            ey = gr->GetErrorY(i);
-            ySum += y;
-         }
-         
-         if ((y<fDelta) && (ey < fDelta)) {
-            ySum = 0.0;
-         } else {
-            nMeasurements++;
-         }
-
-      }
-
-      // calculate mean, in case we are not doing weights
-      if (!fUseWeight) yMean = ySum / nMeasurements;
-
-      next.Reset();
-      // loop over graphs to calculate errors
-      while ((se = (TSysError *) next())) {
-         // let's get points
-         gr = se->GetGraph();
-         gr->GetPoint(i, x, y);
-         ex = gr->GetErrorX(i);
-         ey = gr->GetErrorY(i);
-
-
-         Printf("[%d] x=%f y=%f ex=%f ey=%f", i, x, y, ex, ey);
-
-         if ((y<fDelta) && (ey < fDelta)) {
-            break;
-         }
-
-         // calculating sums and weight
-         if (fUseWeight) {
-            // if y and ey are zero we break
-            w = 1 / TMath::Power(ey, 2);
-            ySum += y * w;
-            wSum += w;
-            eySum += 1 / TMath::Power(ey, 2);
-         } else {
-            // yMean is already calculated
-            // here we calculate sigma instead of alpha
-            eySum += TMath::Power(y - yMean, 2);
-         }
-      }
-
-      // doing final calculation
-      if (fUseWeight) {
-         // if ySum or eySum is zero (we continue)
-         if ((ySum<fDelta) && (eySum < fDelta)) {
-            fGraph->SetPoint(i, x, 0.0);
-            fGraph->SetPointError(i, ex, 0.0);
-            continue;
-         }
-         yMean = ySum / wSum;
-         eyMean = 1 / TMath::Sqrt(eySum);
-      } else {
-         // yMean is already calculated
-
-         if ((ySum<fDelta) && (eySum < fDelta)) {
-            fGraph->SetPoint(i, x, 0.0);
-            fGraph->SetPointError(i, ex, 0.0);
-            continue;
-         }
-
-         // here sigma=sqrt((1/N-1)*sum(d^2))
-         eyMean = TMath::Sqrt(eySum / (nMeasurements - 1));
-         // alpha = sigma/sqrt(N)
-         eyMean /= TMath::Sqrt(nMeasurements);
-      }
-      // Printf("mean(yMean)=%f error(eyMean)=%f", yMean, eyMean);
-      fGraph->GetPoint(i, x, y);
-      fGraph->SetPoint(i, x, yMean);
-      fGraph->SetPointError(i, fGraph->GetErrorX(i), eyMean);
-   }
-
-   if (fGraph) {
-      fGraph->Print();
-
-      // setting number of bins
-      nBins = fGraph->GetN();
-
-      // calculate mean
-      ySum = 0.0;
-      eySum = 0.0;
-      wSum = 0.0;
-      for (Int_t i = 0; i < nBins; i++) {
-         gr->GetPoint(i, x, y);
-         ex = gr->GetErrorX(i);
-         ey = gr->GetErrorY(i);
-         if ((y<fDelta) && (ey < fDelta)) continue;
-         w = 1 / TMath::Power(ey, 2);
-         ySum += y * w;
-         wSum += w;
-         eySum += 1 / TMath::Power(ey, 2);
-      }
-      yMean = ySum / wSum;
-      eyMean = 1 / TMath::Sqrt(eySum);
-      // TODO - Kukni se do knizky
-      fMean = yMean;
-      // we will not calculate sigma for now
-      fSigma = -1.0;
-      fAlpha = eyMean;
-      Printf("TODO mean(fMean)=%e error(fAlpha)=%e", fMean, fAlpha);
-
-   }
-
+   return 0.0;
 }

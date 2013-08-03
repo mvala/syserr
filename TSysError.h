@@ -11,33 +11,37 @@ class TSysError : public TNamed
 {
 
 public:
+
+   enum EType { kNone=0, kMean, kNumTypes };
+
    TSysError();
    TSysError(const char *name, const char *title);
    ~TSysError();
 
+   void              SetGraph(TGraphErrors *gr, Bool_t doClone = kFALSE);
+   void              SetType(TSysError::EType type) { fType = type; }
+   void              SetTypeToList(TSysError::EType type);
+
    TList            *GetList() const { return fList; }
    TGraphErrors     *GetGraph() const { return fGraph; }
-   void              SetUseWeight(Bool_t useWeight){ fUseWeight = useWeight; }
-   void              SetDelta(Double_t delta) { fDelta = delta; }
-   void              SetGraph(TGraphErrors *gr, Bool_t doClone = kFALSE);
+   TH1D             *GetHistogram() const { return fHist; }
+
    void              Add(TSysError *sysError);
    Bool_t            AddGraph(const char *filename, const char *tmpl = "%lg %lg %lg");
    Bool_t            AddGraphDirectory(const char *dirname, const char *filter = "*.txt",
                                        const char *tmpl = "%lg %lg %lg");
-   void              Calculate();
+
+   Double_t          Calculate();
+   Double_t          CalculateMean();
 
 private:
    TList             *fList;      // list of TSysError 
-   TGraphErrors      *fGraph;     // pointer to current graph
+   TGraphErrors      *fGraph;     // current graph
+   TH1D              *fHist;      // current histogram (representation of fGraph)
 
-   Bool_t             fUseWeight; // flag to use weight (it is used when possible)
-   Double_t           fMean;      // mean value
-   Double_t           fSigma;     // sigma
-   Double_t           fAlpha;     // alpha (sigma/sqrt(N))
+   EType              fType;
 
-   Double_t           fDelta;  // small value used for coparison of 2 doubles
-
-   ClassDef(TSysError, 1);
+   ClassDef(TSysError, 1)
 };
 
 #endif /* _TSYSERROR_H_ */
