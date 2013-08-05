@@ -58,6 +58,15 @@ void TSysError::SetGraph(TGraphErrors *gr, Bool_t doClone)
       fGraph = gr;
 }
 
+void TSysError::SetHistogram(TH1D *h)
+{
+   if (!h) return;
+
+   if (fHist) delete fHist;
+   fHist = h;
+}
+
+
 void TSysError::Add(TSysError *sysError)
 {
    if (!sysError) return;
@@ -86,15 +95,17 @@ Bool_t TSysError::AddGraph(const char *filename, const char *tmpl)
    // create list if it was not created yet
    if (!fList) fList = new TList();
 
-   gr->SetName(TString::Format("%s_gr%03d",GetName(),fList->GetEntries()+1).Data());
+   gr->SetName(TString::Format("%s_gr%03d", GetName(), fList->GetEntries() + 1).Data());
 
-   TSysError *se = new TSysError();
+   TSysError *se = new TSysError(TString::Format("%s_%03d", GetName(), fList->GetEntries() + 1).Data(), "");
    se->SetGraph(gr);
 
    // TODO flag for useEY
    TH1D *h = TSysErrorUtils::Graph2Hist(gr, kFALSE);
-   if (fHist) delete fHist;
-   fHist = h;
+
+   if (!h) return kFALSE;
+
+   se->SetHistogram(h);
 
    Printf("Adding fGraph='%s' and fHist=%s", gr->GetName(), h->GetName());
 
@@ -114,7 +125,7 @@ Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, con
               TString::Format("Could not enter direcotry '%s' !!!", dirname).Data());
       return kFALSE;
    }
-   TString out = gSystem->GetFromPipe(TString::Format("ls %s", filter).Data());
+   TString out = gSystem->GetFromPipe(TString::Format("ls -1 %s", filter).Data());
    if (out.IsNull()) {
       ::Error("TSysError::AddGraphDirectory",
               TString::Format("No files found in '%s' !!!", dirname).Data());
@@ -136,125 +147,124 @@ Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, con
    return kTRUE;
 }
 
-void TSysError::SetTypeToList(TSysError::EType type) {
-      TSysError *se;
-      TIter next(fList);
-      while ((se = (TSysError *) next())) se->SetType(type);
+void TSysError::SetTypeToList(TSysError::EType type)
+{
+   TSysError *se;
+   TIter next(fList);
+   while ((se = (TSysError *) next())) se->SetType(type);
+}
+
+void TSysError::PrintHistogramInfo(TSysError *se, TH1D *h) {
+
+   TSysError *seTmp;
+   TH1D *hTmp;
+   if (se && h) {
+      seTmp = se;
+      hTmp = h;
+   } else if (!se && h) {
+      seTmp = new TSysError();
+      hTmp = h;
+   }
+   else {
+      seTmp = se;
+      hTmp = se->GetHistogram();
+   }
+
+   if (!hTmp) return; 
+   Printf("========== Info for '%s' ================", GetName());
+   hTmp->Print();
+   Printf("'%s'[%d] => Mean=%f MeanError=%f", seTmp->GetName(), seTmp->GetType(), hTmp->GetMean(), hTmp->GetMeanError());
+   Printf("'%s'[%d] => StdDev=%f StdDevError=%f", seTmp->GetName(), seTmp->GetType(), hTmp->GetStdDev(), hTmp->GetStdDevError());
+   Printf("'%s'[%d] => RMS=%f RMSError=%f", seTmp->GetName(), seTmp->GetType(), hTmp->GetRMS(), hTmp->GetRMSError());
+
+   if (!se && h) delete seTmp;
 }
 
 
+Bool_t TSysError::Calculate()
+{
 
-Double_t TSysError::Calculate() {
-
-   
+   Printf("Doing Calculate '%s' type=%d fHist=%p", GetName(), fType, fHist);
    switch (fType) {
       case kMean:
-         // Calcularte Mean
          return CalculateMean();
+         break;
+      case kMinStdDev:
+         return CalculateMinStdDev();
          break;
       default:
          TSysError *se;
          TIter next(fList);
          while ((se = (TSysError *) next())) {
-            se->Calculate();
+            if (!se->Calculate()) return kFALSE;
          }
          break;
    }
 
-   return 0.0;
+   return kTRUE;
 }
 
-Double_t TSysError::CalculateMean() {
+Bool_t TSysError::CalculateMean()
+{
 
-   if (fHist) {
-      return 0.0;
-   } else {
-      // TSysError *se;
-      // TIter next(fList);
-      // Double_t arr[fList->GetEntries()];
-      // Int_t i = 0;
-      // Int_t n = 0;
-      // while ((se = (TSysError *) next())) {
-      //    arr[i] = se->CalculateMean();
-      //    sum += arr[i];
-      //    i++;
-      //    n++;
-      // }
+   Printf("Doing CalculateMean '%s' type=%d fHist=%p", GetName(), fType, fHist);
 
-      return 0.0;
+   if (!fHist) {
+      TSysError *se;
+      TIter next(fList);
+      TH1D *h;
+      while ((se = (TSysError *) next())) {
+         h = se->GetHistogram();
+         if (!h) return kFALSE;
+
+         if (!fHist) {
+            fHist = (TH1D *) h->Clone();
+            fHist->Reset();
+            //  we don't want errors per bin
+            fHist->Sumw2(kFALSE);
+         }
+         fHist->Fill(h->GetMean());
+         PrintHistogramInfo(se,h);
+      }
+   }
+   PrintHistogramInfo(this);
+   return kTRUE;
+}
+
+Bool_t TSysError::CalculateMinStdDev()
+{
+
+   if ((!fList) || (fList->GetEntries() < 1)) return kFALSE;
+
+   TSysError *se;
+   TIter next(fList);
+   TH1D *h;
+   Int_t idx = 0;
+   Int_t minIdx;
+   Double_t minStdDev = TSysErrorUtils::kMaxDouble;
+   while ((se = (TSysError *) next())) {
+      h = se->GetHistogram();
+      if (!h) {
+         se->Calculate();
+         h = se->GetHistogram();
+         if (!h) return kFALSE;
+      }
+      if (minStdDev > h->GetStdDev()) {
+         minStdDev = h->GetStdDev();
+         minIdx = idx;
+      }
+
+      idx++;
    }
 
-   
-   // if (fGraph) {
-      
-   //    Int_t i;
-   //    Double_t x, y;
-   //    // Double_t ex, ey;
-   //    Double_t sumXY = 0.0;
-   //    Double_t sumY = 0.0;
-   //    Int_t n = fGraph->GetN();
-   //    for (i=0; i<n; i++) {
-   //       fGraph->GetPoint(i, x, y);
-   //       // ex = fGraph->GetErrorX(i);
-   //       // ey = fGraph->GetErrorY(i);
-   //       Printf("x=%f y=%f x*y=%f", x, y, x*y);
-   //       sumXY += x*y;
-   //       sumY += y;
-   //    }
-   //    Double_t mean = sumXY/sumY;
-   //    Printf("Mean is %f", mean);
+   next.Reset();
+   while ((se = (TSysError *) next())) {
+      Printf("%s", se->GetName());
+      h = se->GetHistogram();
+      PrintHistogramInfo(se,h);
+   }
 
-   //    Double_t sumD = 0.0;
-   //    for (i=0; i<n; i++) {
-   //       fGraph->GetPoint(i, x, y);
-   //       // ex = fGraph->GetErrorX(i);
-   //       // ey = fGraph->GetErrorY(i);
-   //       Printf("x=%f mean=%f d^2=%f", x, mean, TMath::Power(x-mean,2));
-   //       sumD += TMath::Power(x-mean,2);
-   //    }
-   //    Double_t sigma = 0.0;
-   //    Double_t alpha = 0.0;
-   //    if (n > 1) {
-   //       sigma =  TMath::Sqrt(sumD/(n-1));
-   //       alpha = sigma/TMath::Sqrt(n);
-   //    }
-   //    Printf("Sigma is %f", sigma);
-   //    Printf("Alpha is %f", alpha);
-   //    return mean;
-      
-   // } else {
-   //    Double_t sum = 0.0;
-   //    TSysError *se;
-   //    TIter next(fList);
-   //    Double_t arr[fList->GetEntries()];
-   //    Int_t i = 0;
-   //    Int_t n = 0;
-   //    while ((se = (TSysError *) next())) {
-   //       arr[i] = se->CalculateMean();
-   //       sum += arr[i];
-   //       i++;
-   //       n++;
-   //    }
-
-   //    Double_t mean = sum/n;
-   //    Printf("Mean of means is %f", mean);
-   //    i = 0;
-   //    next.Reset();
-   //    while ((se = (TSysError *) next())) {
-   //       Printf("%f", TMath::Power(arr[i]-mean,2));
-   //       sum += TMath::Power(arr[i++]-mean,2);
-   //    }
-      
-   //    Double_t sigma = 0.0;
-   //    Double_t alpha = 0.0;
-   //    if (n > 1) {
-   //       sigma =  TMath::Sqrt(sum/(n-1));
-   //       alpha = sigma/TMath::Sqrt(n);
-   //    }
-   //    Printf("Sigma of means is %f", sigma);
-   //    Printf("Alpha of means is %f", alpha);
-   //    return mean;
-   // }
-
-   return 0.0;
+   se = (TSysError *) fList->At(minIdx);
+   Printf("'%s'[%d] => MinStdDev is %s", GetName(), GetType(), se->GetName());
+   return kTRUE;
 }

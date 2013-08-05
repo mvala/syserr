@@ -12,27 +12,32 @@ class TSysError : public TNamed
 
 public:
 
-   enum EType { kNone=0, kMean, kNumTypes };
+   enum EType { kNone=0, kMean, kMinStdDev, kNumTypes };
 
    TSysError();
    TSysError(const char *name, const char *title);
    ~TSysError();
 
    void              SetGraph(TGraphErrors *gr, Bool_t doClone = kFALSE);
+   void              SetHistogram(TH1D *h);
    void              SetType(TSysError::EType type) { fType = type; }
    void              SetTypeToList(TSysError::EType type);
 
    TList            *GetList() const { return fList; }
    TGraphErrors     *GetGraph() const { return fGraph; }
    TH1D             *GetHistogram() const { return fHist; }
+   EType             GetType() const { return fType; }
+
+   void              PrintHistogramInfo(TSysError *se, TH1D *h=0);
 
    void              Add(TSysError *sysError);
    Bool_t            AddGraph(const char *filename, const char *tmpl = "%lg %lg %lg");
    Bool_t            AddGraphDirectory(const char *dirname, const char *filter = "*.txt",
                                        const char *tmpl = "%lg %lg %lg");
 
-   Double_t          Calculate();
-   Double_t          CalculateMean();
+   Bool_t          Calculate();
+   Bool_t          CalculateMean();
+   Bool_t          CalculateMinStdDev();
 
 private:
    TList             *fList;      // list of TSysError 

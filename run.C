@@ -34,37 +34,48 @@ void run()
    gROOT->ProcessLine(".L TSysError.cxx+g");
    if (!gROOT->GetClass("TSysError")) return;
 
+   Bool_t rc;
+
    // TH1D *h = TSysErrorUtils::Graph2Hist(new TGraphErrors());
    // if (h) h->Print();
    // return;
 
    // testHisto();
    // return;
-
-
-   const char *dir = "/eos/saske.sk/users/m/mvala/ALICE/Rsn_WORK/pp_2.76/SysErr/QUALITY";
+   
+   // const char *dir = "/eos/saske.sk/users/m/mvala/ALICE/Rsn_WORK/pp_2.76/SysErr/QUALITY";
    // const char *dir = "/cache/users/m/mvala/ALICE/Rsn_WORK/pp_2.76/SysErr/QUALITY";
    // const char *dir = "/home/mvala/ALICE/RSN_WORK/SysErr/QUALITY";
-   // const char *dir = "/home/mvala/ALICE/RSN_WORK/SysErr/TEST";
+   const char *dir = "/home/mvala/ALICE/RSN_WORK/SysErr/TEST";
 
 
    // TSysError *finalPt = new TSysError("finalPt","Final Pt");
    // finalPt->SetType(TSysError::kMean);
 
+   TSysError *bestMethodMeanPt = new TSysError("bestMethodMeanPt","Best Method in mean Pt");
+   bestMethodMeanPt->SetType(TSysError::kMinStdDev);
+
+
    TSysError *pt_tracking_LS = new TSysError("pt_tracking_LS", "Pt (tracking) Like Sign");
-   pt_tracking_LS->SetType(TSysError::kMean);
    pt_tracking_LS->AddGraphDirectory(TString::Format("%s/LS", dir).Data(), "", "%lg %lg %lg %lg");
+   pt_tracking_LS->SetType(TSysError::kMean);
    pt_tracking_LS->SetTypeToList(TSysError::kMean);
-   pt_tracking_LS->Calculate();
+   // rc = pt_tracking_LS->Calculate();
 
-   // TSysError *pt_tracking_MIX = new TSysError("pt_tracking_MIX","Pt (tracking) Mixing");
-   // pt_tracking_MIX->AddGraphDirectory(TString::Format("%s/MIX",dir).Data(),"","%lg %lg %lg %lg");
 
-   // finalPt->Add(pt_tracking_LS);
-   // finalPt->Add(pt_tracking_MIX);
+   TSysError *pt_tracking_MIX = new TSysError("pt_tracking_MIX","Pt (tracking) Mixing");
+   pt_tracking_MIX->AddGraphDirectory(TString::Format("%s/MIX",dir).Data(),"","%lg %lg %lg %lg");
+   pt_tracking_MIX->SetType(TSysError::kMean);
+   pt_tracking_MIX->SetTypeToList(TSysError::kMean);
+   // rc = pt_tracking_MIX->Calculate();
 
-   // calculate everyting
-   // finalPt->Calculate();
+
+   bestMethodMeanPt->Add(pt_tracking_LS);
+   bestMethodMeanPt->Add(pt_tracking_MIX);
+
+   rc = bestMethodMeanPt->Calculate();
+
+   Printf("Process status : %s", (rc == 0) ? "FAILED !!!" : "OK");
 
    // TGraphErrors *gr = finalPt->GetGraph();
    // if (!gr) return;
