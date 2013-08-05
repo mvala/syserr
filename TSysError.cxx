@@ -19,6 +19,8 @@ TSysError::TSysError() : TNamed(),
    fList(0),
    fGraph(0),
    fHist(0),
+   fInputList(0),
+   fOutputList(0),
    fType(kNone),
    fPrintInfo(kFALSE)
 {
@@ -29,6 +31,8 @@ TSysError::TSysError(const char *name, const char *title) : TNamed(name, title),
    fList(0),
    fGraph(0),
    fHist(0),
+   fInputList(0),
+   fOutputList(0),
    fType(kNone),
    fPrintInfo(kFALSE)
 {
@@ -40,8 +44,12 @@ TSysError::~TSysError()
 
    // clearing list
    fList->Clear();
+   fInputList->Clear();
+   fOutputList->Clear();
 
    delete fList;
+   delete fInputList;
+   delete fOutputList;
    delete fGraph;
    delete fHist;
 
@@ -156,6 +164,21 @@ void TSysError::SetTypeToList(TSysError::EType type)
    TIter next(fList);
    while ((se = (TSysError *) next())) se->SetType(type);
 }
+
+void TSysError::AddInput(TObject *o)
+{
+   if (!o) return;
+   if (fInputList) fInputList = new TList();
+   fInputList->Add(o);
+}
+
+void TSysError:: AddOutput(TObject *o)
+{
+   if (!o) return;
+   if (fOutputList) fOutputList = new TList();
+   fOutputList->Add(o);
+}
+
 
 void TSysError::PrintHistogramInfo(TSysError *se, TH1D *h)
 {

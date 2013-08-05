@@ -25,6 +25,8 @@ public:
    void              SetPrintInfo(Bool_t printInfo) { fPrintInfo = printInfo; }
 
    TList            *GetList() const { return fList; }
+   TList            *GetInputList() const { return fInputList; }
+   TList            *GetOutputList() const { return fOutputList; }
    TGraphErrors     *GetGraph() const { return fGraph; }
    TH1D             *GetHistogram() const { return fHist; }
    EType             GetType() const { return fType; }
@@ -36,17 +38,22 @@ public:
    Bool_t            AddGraphDirectory(const char *dirname, const char *filter = "*.txt",
                                        const char *tmpl = "%lg %lg %lg");
 
-   Bool_t          Calculate();
-   Bool_t          CalculateMean();
-   Bool_t          CalculateMinStdDev();
+   void              AddInput(TObject *o);
+   void              AddOutput(TObject *o);
+   Bool_t            Calculate();
+   Bool_t            CalculateMean();
+   Bool_t            CalculateMinStdDev();
 
 private:
-   TList             *fList;      // list of TSysError
-   TGraphErrors      *fGraph;     // current graph
-   TH1D              *fHist;      // current histogram (representation of fGraph)
+   TList             *fList;        // list of TSysError
+   TGraphErrors      *fGraph;       // current graph
+   TH1D              *fHist;        // current histogram (representation of fGraph)
 
-   EType              fType;
-   Bool_t             fPrintInfo; // flag if info should be printed (default is kFALSE)
+   TList             *fInputList;   // list of TSysError
+   TList             *fOutputList;  // list of TSysError
+
+   EType              fType;        // type of calculation
+   Bool_t             fPrintInfo;   // flag if info should be printed (default is kFALSE)
 
    ClassDef(TSysError, 1)
 };
