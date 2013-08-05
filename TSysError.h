@@ -22,6 +22,7 @@ public:
    void              SetHistogram(TH1D *h);
    void              SetType(TSysError::EType type) { fType = type; }
    void              SetTypeToList(TSysError::EType type);
+   void              SetPrintInfo(Bool_t printInfo) { fPrintInfo = printInfo; }
 
    TList            *GetList() const { return fList; }
    TGraphErrors     *GetGraph() const { return fGraph; }
@@ -45,6 +46,7 @@ private:
    TH1D              *fHist;      // current histogram (representation of fGraph)
 
    EType              fType;
+   Bool_t             fPrintInfo; // flag if info should be printed (default is kFALSE)
 
    ClassDef(TSysError, 1)
 };

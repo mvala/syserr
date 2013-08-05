@@ -19,7 +19,8 @@ TSysError::TSysError() : TNamed(),
    fList(0),
    fGraph(0),
    fHist(0),
-   fType(kNone)
+   fType(kNone),
+   fPrintInfo(kFALSE)
 {
 
 }
@@ -28,7 +29,8 @@ TSysError::TSysError(const char *name, const char *title) : TNamed(name, title),
    fList(0),
    fGraph(0),
    fHist(0),
-   fType(kNone)
+   fType(kNone),
+   fPrintInfo(kFALSE)
 {
 
 }
@@ -107,8 +109,6 @@ Bool_t TSysError::AddGraph(const char *filename, const char *tmpl)
 
    se->SetHistogram(h);
 
-   Printf("Adding fGraph='%s' and fHist=%s", gr->GetName(), h->GetName());
-
    // adding TSysError to the list
    fList->Add(se);
 
@@ -134,6 +134,8 @@ Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, con
 
    }
 
+   ::Info("TSysError::AddGraphDirectory", TString::Format("Adding dir %s", dir).Data());
+
    TObjArray *t = out.Tokenize("\n");
    TObjString *so;
    TString s;
@@ -157,6 +159,8 @@ void TSysError::SetTypeToList(TSysError::EType type)
 
 void TSysError::PrintHistogramInfo(TSysError *se, TH1D *h)
 {
+
+   if (!fPrintInfo) return;
 
    TSysError *seTmp;
    TH1D *hTmp;
@@ -257,9 +261,11 @@ Bool_t TSysError::CalculateMinStdDev()
       idx++;
    }
 
+   Printf("========== CalculateMinStdDev ================");
    next.Reset();
    while ((se = (TSysError *) next())) {
-      PrintHistogramInfo(se);
+      h = se->GetHistogram();
+      Printf("%s => StdDev=%f StdDevError=%f", se->GetName(), h->GetStdDev(), h->GetStdDevError());
    }
 
    se = (TSysError *) fList->At(minIdx);
