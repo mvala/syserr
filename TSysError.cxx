@@ -119,16 +119,17 @@ Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, con
 {
 
    TString pwd = gSystem->WorkingDirectory();
+   const char *dir = gSystem->ExpandPathName(dirname);
 
-   if (!gSystem->ChangeDirectory(dirname)) {
+   if (!gSystem->ChangeDirectory(dir)) {
       ::Error("TSysError::AddGraphDirectory",
-              TString::Format("Could not enter direcotry '%s' !!!", dirname).Data());
+              TString::Format("Could not enter direcotry '%s' !!!", dir).Data());
       return kFALSE;
    }
    TString out = gSystem->GetFromPipe(TString::Format("ls -1 %s", filter).Data());
    if (out.IsNull()) {
       ::Error("TSysError::AddGraphDirectory",
-              TString::Format("No files found in '%s' !!!", dirname).Data());
+              TString::Format("No files found in '%s' !!!", dir).Data());
       return kFALSE;
 
    }

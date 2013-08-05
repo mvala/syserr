@@ -45,8 +45,8 @@ void run()
 
    // const char *dir = "/eos/saske.sk/users/m/mvala/ALICE/Rsn_WORK/pp_2.76/SysErr/QUALITY";
    // const char *dir = "/cache/users/m/mvala/ALICE/Rsn_WORK/pp_2.76/SysErr/QUALITY";
-   // const char *dir = "/home/mvala/ALICE/RSN_WORK/SysErr/QUALITY";
-   const char *dir = "/home/mvala/ALICE/RSN_WORK/SysErr/TEST";
+   // const char *dir = "$HOME/ALICE/RSN_WORK/SysErr/QUALITY";
+   const char *dir = "$HOME/ALICE/RSN_WORK/SysErr/TEST";
 
 
    // TSysError *finalPt = new TSysError("finalPt","Final Pt");
