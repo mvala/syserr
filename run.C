@@ -42,7 +42,7 @@ void run()
 
    // testHisto();
    // return;
-   
+
    // const char *dir = "/eos/saske.sk/users/m/mvala/ALICE/Rsn_WORK/pp_2.76/SysErr/QUALITY";
    // const char *dir = "/cache/users/m/mvala/ALICE/Rsn_WORK/pp_2.76/SysErr/QUALITY";
    // const char *dir = "/home/mvala/ALICE/RSN_WORK/SysErr/QUALITY";
@@ -52,7 +52,7 @@ void run()
    // TSysError *finalPt = new TSysError("finalPt","Final Pt");
    // finalPt->SetType(TSysError::kMean);
 
-   TSysError *bestMethodMeanPt = new TSysError("bestMethodMeanPt","Best Method in mean Pt");
+   TSysError *bestMethodMeanPt = new TSysError("bestMethodMeanPt", "Best Method in mean Pt");
    bestMethodMeanPt->SetType(TSysError::kMinStdDev);
 
 
@@ -63,8 +63,8 @@ void run()
    // rc = pt_tracking_LS->Calculate();
 
 
-   TSysError *pt_tracking_MIX = new TSysError("pt_tracking_MIX","Pt (tracking) Mixing");
-   pt_tracking_MIX->AddGraphDirectory(TString::Format("%s/MIX",dir).Data(),"","%lg %lg %lg %lg");
+   TSysError *pt_tracking_MIX = new TSysError("pt_tracking_MIX", "Pt (tracking) Mixing");
+   pt_tracking_MIX->AddGraphDirectory(TString::Format("%s/MIX", dir).Data(), "", "%lg %lg %lg %lg");
    pt_tracking_MIX->SetType(TSysError::kMean);
    pt_tracking_MIX->SetTypeToList(TSysError::kMean);
    // rc = pt_tracking_MIX->Calculate();

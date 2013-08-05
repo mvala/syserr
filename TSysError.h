@@ -12,7 +12,7 @@ class TSysError : public TNamed
 
 public:
 
-   enum EType { kNone=0, kMean, kMinStdDev, kNumTypes };
+   enum EType { kNone = 0, kMean, kMinStdDev, kNumTypes };
 
    TSysError();
    TSysError(const char *name, const char *title);
@@ -28,7 +28,7 @@ public:
    TH1D             *GetHistogram() const { return fHist; }
    EType             GetType() const { return fType; }
 
-   void              PrintHistogramInfo(TSysError *se, TH1D *h=0);
+   void              PrintHistogramInfo(TSysError *se, TH1D *h = 0);
 
    void              Add(TSysError *sysError);
    Bool_t            AddGraph(const char *filename, const char *tmpl = "%lg %lg %lg");
@@ -40,7 +40,7 @@ public:
    Bool_t          CalculateMinStdDev();
 
 private:
-   TList             *fList;      // list of TSysError 
+   TList             *fList;      // list of TSysError
    TGraphErrors      *fGraph;     // current graph
    TH1D              *fHist;      // current histogram (representation of fGraph)
 

@@ -154,7 +154,8 @@ void TSysError::SetTypeToList(TSysError::EType type)
    while ((se = (TSysError *) next())) se->SetType(type);
 }
 
-void TSysError::PrintHistogramInfo(TSysError *se, TH1D *h) {
+void TSysError::PrintHistogramInfo(TSysError *se, TH1D *h)
+{
 
    TSysError *seTmp;
    TH1D *hTmp;
@@ -164,13 +165,12 @@ void TSysError::PrintHistogramInfo(TSysError *se, TH1D *h) {
    } else if (!se && h) {
       seTmp = new TSysError();
       hTmp = h;
-   }
-   else {
+   } else {
       seTmp = se;
       hTmp = se->GetHistogram();
    }
 
-   if (!hTmp) return; 
+   if (!hTmp) return;
    Printf("========== Info for '%s' ================", GetName());
    hTmp->Print();
    Printf("'%s'[%d] => Mean=%f MeanError=%f", seTmp->GetName(), seTmp->GetType(), hTmp->GetMean(), hTmp->GetMeanError());
@@ -224,7 +224,7 @@ Bool_t TSysError::CalculateMean()
             fHist->Sumw2(kFALSE);
          }
          fHist->Fill(h->GetMean());
-         PrintHistogramInfo(se,h);
+         PrintHistogramInfo(se, h);
       }
    }
    PrintHistogramInfo(this);
@@ -253,15 +253,12 @@ Bool_t TSysError::CalculateMinStdDev()
          minStdDev = h->GetStdDev();
          minIdx = idx;
       }
-
       idx++;
    }
 
    next.Reset();
    while ((se = (TSysError *) next())) {
-      Printf("%s", se->GetName());
-      h = se->GetHistogram();
-      PrintHistogramInfo(se,h);
+      PrintHistogramInfo(se);
    }
 
    se = (TSysError *) fList->At(minIdx);
