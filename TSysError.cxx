@@ -123,7 +123,7 @@ Bool_t TSysError::AddGraph(const char *filename, const char *tmpl)
    return kTRUE;
 }
 
-Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, const char *tmpl)
+Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, const char *tmpl, Int_t maxFiles)
 {
 
    TString pwd = gSystem->WorkingDirectory();
@@ -148,9 +148,11 @@ Bool_t TSysError::AddGraphDirectory(const char *dirname, const char *filter, con
    TObjString *so;
    TString s;
    TIter next(t);
+   Int_t c=0;
    while ((so = (TObjString *) next())) {
       s = so->GetString();
       AddGraph(s.Data(), tmpl);
+      if (++c>=maxFiles) break;
    }
 
    gSystem->ChangeDirectory(pwd.Data());
@@ -168,14 +170,14 @@ void TSysError::SetTypeToList(TSysError::EType type)
 void TSysError::AddInput(TObject *o)
 {
    if (!o) return;
-   if (fInputList) fInputList = new TList();
+   if (!fInputList) fInputList = new TList();
    fInputList->Add(o);
 }
 
 void TSysError:: AddOutput(TObject *o)
 {
    if (!o) return;
-   if (fOutputList) fOutputList = new TList();
+   if (!fOutputList) fOutputList = new TList();
    fOutputList->Add(o);
 }
 
@@ -220,6 +222,9 @@ Bool_t TSysError::Calculate()
       case kMinStdDev:
          return CalculateMinStdDev();
          break;
+      case kRelativeErrorMC:
+         return CalculateRelaticeErrorMC();
+         break;
       default:
          TSysError *se;
          TIter next(fList);
@@ -242,6 +247,7 @@ Bool_t TSysError::CalculateMean()
       TIter next(fList);
       TH1D *h;
       while ((se = (TSysError *) next())) {
+         se->Calculate();
          h = se->GetHistogram();
          if (!h) return kFALSE;
 
@@ -254,8 +260,12 @@ Bool_t TSysError::CalculateMean()
          fHist->Fill(h->GetMean());
          PrintHistogramInfo(se, h);
       }
+      PrintHistogramInfo(this);
+
+   } else {
+      Printf("We have hist !!!");
+      PrintHistogramInfo(this);
    }
-   PrintHistogramInfo(this);
    return kTRUE;
 }
 
@@ -288,10 +298,75 @@ Bool_t TSysError::CalculateMinStdDev()
    next.Reset();
    while ((se = (TSysError *) next())) {
       h = se->GetHistogram();
-      Printf("%s => StdDev=%f StdDevError=%f", se->GetName(), h->GetStdDev(), h->GetStdDevError());
+      PrintHistogramInfo(se);
+
+      // Printf("%s => StdDev=%f StdDevError=%f", se->GetName(), h->GetStdDev(), h->GetStdDevError());
    }
 
    se = (TSysError *) fList->At(minIdx);
+   Printf("*****************************************************************");
    Printf("'%s'[%d] => MinStdDev is %s", GetName(), GetType(), se->GetName());
+   PrintHistogramInfo(se);
+   Printf("*****************************************************************");
+   return kTRUE;
+}
+
+Bool_t TSysError::CalculateRelaticeErrorMC() {
+   
+   Printf("Doing CalculateRelaticeErrorMC '%s' type=%d fHist=%p fList=%p", GetName(), fType, fHist, fList);
+
+   // let's move fGraph and fHist to fInputList and remove it from fList
+   TSysError *se = new TSysError(TString::Format("%s_DP",GetName()).Data(),"");
+   se->SetGraph(fGraph);
+   se->SetHistogram(fHist);
+   if (!fList) fList = new TList();
+   fList->Add(se);
+   fGraph = 0;
+   fHist = 0;
+
+   TNamed *n = (TNamed*) GetInputList()->FindObject("RefMC");
+   AddGraph(n->GetTitle(),"%lg %lg %lg %lg");
+
+   se = (TSysError*) fList->At(0);
+   TGraphErrors *grDP = se->GetGraph();
+
+   se = (TSysError*) fList->At(1);
+   TGraphErrors *grMC = se->GetGraph();
+
+   // let's sort graphs
+   grDP->Sort();
+   grMC->Sort();
+
+   // grDP->Print("all");
+   // grMC->Print("all");
+
+   if (grDP->GetN() != grMC->GetN()) return kFALSE;
+
+   fGraph = new TGraphErrors();
+   fGraph->SetName(TString::Format("%s_DP_MC",GetName()).Data());
+   // Double_t *xDP = grDP->GetX();
+   Double_t *yDP = grDP->GetY();
+   // Double_t *exDP = grDP->GetEX();
+   // Double_t *eyDP = grDP->GetEY();
+
+   // Double_t *xMC = grMC->GetX();
+   Double_t *yMC = grMC->GetY();
+   // Double_t *exMC = grMC->GetEX();
+   // Double_t *eyMC = grMC->GetEY();
+
+   Double_t eRelative;
+   Double_t sum=0.0;
+   for (Int_t i=0; i<grDP->GetN(); i++) {
+      if (yMC[i]>0.0) {
+         eRelative = (yMC[i]-yDP[i])/yMC[i];
+         // eRelative = (yDP[i]-yMC[i])/yMC[i];
+         sum += eRelative;
+      }
+   }
+   fHist = new TH1D(TString::Format("%s_DP_MC_hist",GetName()).Data(),"",1,0,2*sum);
+   fHist->Fill(sum);
+   // fPrintInfo = kTRUE;
+   PrintHistogramInfo(this);
+
    return kTRUE;
 }

@@ -12,7 +12,7 @@ class TSysError : public TNamed
 
 public:
 
-   enum EType { kNone = 0, kMean, kMinStdDev, kNumTypes };
+   enum EType { kNone = 0, kMean, kMinStdDev, kRelativeErrorMC , kNumTypes };
 
    TSysError();
    TSysError(const char *name, const char *title);
@@ -36,13 +36,15 @@ public:
    void              Add(TSysError *sysError);
    Bool_t            AddGraph(const char *filename, const char *tmpl = "%lg %lg %lg");
    Bool_t            AddGraphDirectory(const char *dirname, const char *filter = "*.txt",
-                                       const char *tmpl = "%lg %lg %lg");
+                                       const char *tmpl = "%lg %lg %lg",
+                                       Int_t maxFiles=kMaxInt);
 
    void              AddInput(TObject *o);
    void              AddOutput(TObject *o);
    Bool_t            Calculate();
    Bool_t            CalculateMean();
    Bool_t            CalculateMinStdDev();
+   Bool_t            CalculateRelaticeErrorMC();
 
 private:
    TList             *fList;        // list of TSysError
