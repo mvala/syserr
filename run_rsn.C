@@ -35,6 +35,7 @@ void ProcessDirecotry(TObject *se, const char *dirname, const char *filter="")
       seTmp->SetType(TSysError::kMean);
       seTmp->SetTypeToList(TSysError::kMean);
       ((TSysError*)se)->Add(seTmp);
+      // seTmp->SetPrintInfo(kTRUE);
    }
    gSystem->ChangeDirectory(pwd.Data());
 }
@@ -55,6 +56,7 @@ void run_rsn()
 
    TSysError *bestMethodMeanPt = new TSysError("bestMethodMeanPt", "Best Method in mean Pt");
    bestMethodMeanPt->SetType(TSysError::kMinStdDev);
+   bestMethodMeanPt->SetPrintInfo(kTRUE);
 
    ProcessDirecotry(bestMethodMeanPt, dir.Data());
 

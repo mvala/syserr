@@ -46,7 +46,7 @@ void ProcessDirecotry(TObject *se, const char *dirname, const char *filter="", I
       seTmp = new TSysError(s.Data(), "");
       seTmp->AddGraphDirectory(TString::Format("%s/%s/runs", dir,s.Data()).Data(), "", "%lg %lg %lg %lg", maxMeasurments);
       seTmp->SetType(TSysError::kMean);
-      seTmp->SetTypeToList(TSysError::kRelativeErrorMC);
+      seTmp->SetTypeToList(TSysError::kRelativeErrorMCSum);
       ((TSysError*)se)->Add(seTmp);
       TIter nextSE(seTmp->GetList());
       TH1D *h;

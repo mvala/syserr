@@ -12,12 +12,13 @@ class TSysError : public TNamed
 
 public:
 
-   enum EType { kNone = 0, kMean, kMinStdDev, kRelativeErrorMC , kNumTypes };
+   enum EType { kNone = 0, kMean, kMinStdDev, kRelativeErrorMCSum, kAbsoluteDevFromRef, kMaxValueFromBin, kMaxValueFromBinPercent, kNumTypes };
 
    TSysError();
    TSysError(const char *name, const char *title);
    ~TSysError();
-
+   void              Browse(TBrowser *b);
+   Bool_t            IsFolder() const { return kTRUE; }
    void              SetGraph(TGraphErrors *gr, Bool_t doClone = kFALSE);
    void              SetHistogram(TH1D *h);
    void              SetType(TSysError::EType type) { fType = type; }
@@ -44,7 +45,10 @@ public:
    Bool_t            Calculate();
    Bool_t            CalculateMean();
    Bool_t            CalculateMinStdDev();
-   Bool_t            CalculateRelaticeErrorMC();
+   Bool_t            CalculateAbsoluteDevFromRef();
+   Bool_t            CalculateRelaticeErrorMCSum();
+   Bool_t            CalculateMaxValueFromBin();
+   Bool_t            CalculateMaxValueFromBinPercent();
 
 private:
    TList             *fList;        // list of TSysError

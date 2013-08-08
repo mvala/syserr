@@ -2,6 +2,7 @@
 
 #include <TError.h>
 #include <TSystem.h>
+#include <TBrowser.h>
 #include <TGraphErrors.h>
 #include <TList.h>
 #include <TObjArray.h>
@@ -42,18 +43,32 @@ TSysError::TSysError(const char *name, const char *title) : TNamed(name, title),
 TSysError::~TSysError()
 {
 
-   // clearing list
-   fList->Clear();
-   fInputList->Clear();
-   fOutputList->Clear();
+   // // clearing list
+   // fList->Clear();
+   // fInputList->Clear();
+   // fOutputList->Clear();
 
-   delete fList;
-   delete fInputList;
-   delete fOutputList;
-   delete fGraph;
-   delete fHist;
+   // delete fList;
+   // delete fInputList;
+   // delete fOutputList;
+   // delete fGraph;
+   // delete fHist;
 
 }
+
+void TSysError::Browse(TBrowser *b)
+{
+   // Browse the list of tasks.
+   // It is recommended to add the top level task to the list of
+   // ROOT browsables by:
+   //    gROOT->GetListOfBrowsables()->Add(myTopLevelTask)
+
+   if (fList) fList->Browse(b);
+   if (fGraph) b->Add(fGraph);
+   if (fHist) b->Add(fHist);
+   
+}
+
 
 void TSysError::SetGraph(TGraphErrors *gr, Bool_t doClone)
 {
@@ -222,8 +237,17 @@ Bool_t TSysError::Calculate()
       case kMinStdDev:
          return CalculateMinStdDev();
          break;
-      case kRelativeErrorMC:
-         return CalculateRelaticeErrorMC();
+      case kAbsoluteDevFromRef:
+         return CalculateAbsoluteDevFromRef();
+         break;
+      case kRelativeErrorMCSum:
+         return CalculateRelaticeErrorMCSum();
+         break;
+      case kMaxValueFromBin:
+         return CalculateMaxValueFromBin();
+         break;
+      case kMaxValueFromBinPercent:
+         return CalculateMaxValueFromBinPercent();
          break;
       default:
          TSysError *se;
@@ -311,7 +335,68 @@ Bool_t TSysError::CalculateMinStdDev()
    return kTRUE;
 }
 
-Bool_t TSysError::CalculateRelaticeErrorMC() {
+Bool_t TSysError::CalculateAbsoluteDevFromRef() {
+   
+   Printf("Doing CalculatekAbsoluteDevFromRef '%s' type=%d fHist=%p fList=%p", GetName(), fType, fHist, fList);
+
+   // let's move fGraph and fHist to fInputList and remove it from fList
+   TSysError *se = new TSysError(TString::Format("%s_DP",GetName()).Data(),"");
+   se->SetGraph(fGraph);
+   se->SetHistogram(fHist);
+   if (!fList) fList = new TList();
+   fList->Add(se);
+   fGraph = 0;
+   fHist = 0;
+
+   TNamed *n = (TNamed*) GetInputList()->FindObject("RefMC");
+   AddGraph(n->GetTitle(),"%lg %lg %lg %lg");
+
+   se = (TSysError*) fList->At(0);
+   TGraphErrors *grDP = se->GetGraph();
+
+   se = (TSysError*) fList->At(1);
+   TGraphErrors *grMC = se->GetGraph();
+
+   // let's sort graphs
+   grDP->Sort();
+   grMC->Sort();
+
+   // grDP->Print("all");
+   // grMC->Print("all");
+
+   if (grDP->GetN() != grMC->GetN()) return kFALSE;
+
+   fGraph = new TGraphErrors();
+   fGraph->SetName(TString::Format("%s_DP_MC",GetName()).Data());
+   // Double_t *xDP = grDP->GetX();
+   Double_t *yDP = grDP->GetY();
+   // Double_t *exDP = grDP->GetEX();
+   // Double_t *eyDP = grDP->GetEY();
+
+   // Double_t *xMC = grMC->GetX();
+   Double_t *yMC = grMC->GetY();
+   // Double_t *exMC = grMC->GetEX();
+   // Double_t *eyMC = grMC->GetEY();
+
+   fHist = (TH1D*) se->GetHistogram()->Clone();
+   fHist->SetName(TString::Format("%s_DP_MC_eAbs_hist",GetName()).Data());
+   fHist->Reset();
+                  
+   Double_t eAbs;
+   for (Int_t i=0; i<grDP->GetN(); i++) {
+      if (yMC[i]>0.0) {
+         eAbs = TMath::Abs(yMC[i]-yDP[i]);
+         fHist->SetBinContent(i+1,eAbs);
+      }
+   }
+   fHist->Print("all");
+   // fPrintInfo = kTRUE;
+   PrintHistogramInfo(this);
+
+   return kTRUE;
+}
+
+Bool_t TSysError::CalculateRelaticeErrorMCSum() {
    
    Printf("Doing CalculateRelaticeErrorMC '%s' type=%d fHist=%p fList=%p", GetName(), fType, fHist, fList);
 
@@ -368,5 +453,118 @@ Bool_t TSysError::CalculateRelaticeErrorMC() {
    // fPrintInfo = kTRUE;
    PrintHistogramInfo(this);
 
+   return kTRUE;
+}
+
+
+Bool_t TSysError::CalculateMaxValueFromBin()
+{
+
+   if ((!fList) || (fList->GetEntries() < 1)) return kFALSE;
+
+   Printf("Doing CalculateMaxValueFromBin '%s' type=%d fHist=%p fList=%p", GetName(), fType, fHist, fList);
+
+
+   TSysError *se;
+   TIter next(fList);
+   TH1D *h;
+   Double_t *max;
+   while ((se = (TSysError *) next())) {
+      se->Calculate();
+      h = se->GetHistogram();
+      if (!h) return kFALSE;
+
+      if (!fHist) {
+         fHist = (TH1D*) h->Clone();
+         fHist->Reset();
+         fHist->SetName(TString::Format("%s_hist",GetName()).Data());
+         max = new Double_t[fHist->GetNbinsX()];
+         for (Int_t i=1; i<=fHist->GetNbinsX();i++)
+            max[i-1] = 0.0;
+      }
+
+      
+      for (Int_t i=1; i<=fHist->GetNbinsX();i++) {
+         // Printf("%f %f",fHist->GetBinContent(i),h->GetBinContent(i));
+         if (max[i-1] < h->GetBinContent(i)) 
+            max[i-1] = h->GetBinContent(i);
+      }
+   }
+
+   for (Int_t i=1; i<=fHist->GetNbinsX();i++) {
+
+         fHist->SetBinContent(i,max[i-1]);
+   }
+
+
+   delete [] max;
+   Printf(GetName());
+   fHist->Print("all");
+   PrintHistogramInfo(this);
+   return kTRUE;
+}
+
+Bool_t TSysError::CalculateMaxValueFromBinPercent()
+{
+
+   if ((!fList) || (fList->GetEntries() < 1)) return kFALSE;
+
+   Printf("Doing CalculateMaxValueFromBin '%s' type=%d fHist=%p fList=%p", GetName(), fType, fHist, fList);
+
+   TNamed *n = (TNamed*) GetInputList()->FindObject("RefMC");
+   TGraphErrors *grRef = new TGraphErrors(n->GetTitle(),"%lg %lg %lg %lg");
+   TH1D *hRef = TSysErrorUtils::Graph2Hist(grRef);
+
+   if (!hRef) return kFALSE;
+
+   TSysError *se;
+   TIter next(fList);
+   TH1D *h;
+   Double_t *max;
+   while ((se = (TSysError *) next())) {
+      se->Calculate();
+      h = se->GetHistogram();
+      if (!h) return kFALSE;
+
+      if (!fHist) {
+         fHist = (TH1D*) h->Clone();
+         fHist->Reset();
+         fHist->SetName(TString::Format("%s_hist",GetName()).Data());
+         max = new Double_t[fHist->GetNbinsX()];
+         for (Int_t i=1; i<=fHist->GetNbinsX();i++)
+            max[i-1] = 0.0;
+      }
+
+      
+      for (Int_t i=1; i<=fHist->GetNbinsX();i++) {
+         // Printf("%f %f",fHist->GetBinContent(i),h->GetBinContent(i));
+         if (max[i-1] < h->GetBinContent(i)) 
+            max[i-1] = h->GetBinContent(i);
+      }
+   }
+
+   Double_t refVal;
+   Double_t sum=0.0;
+   Int_t c=0;
+   for (Int_t i=1; i<=fHist->GetNbinsX();i++) {
+      refVal = hRef->GetBinContent(i);
+      if (TMath::Abs(refVal) > TSysErrorUtils::kEpsilon) {
+         Printf("%f %f", max[i-1], refVal);
+         fHist->SetBinContent(i,max[i-1]/refVal);
+         sum+=max[i-1]/refVal;
+         c++;
+
+      }
+      
+   }
+
+
+
+   delete [] max;
+   Printf(GetName());
+   fHist->Print("all");
+   PrintHistogramInfo(this);
+   Printf("Average is %.1f%%",sum/c*100);
+   
    return kTRUE;
 }
