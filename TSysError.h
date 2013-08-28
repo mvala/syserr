@@ -4,6 +4,7 @@
 #define _TSYSERROR_H_
 
 #include <TNamed.h>
+#include <Rtypes.h>
 
 class TList;
 class TGraphErrors;
@@ -12,7 +13,8 @@ class TSysError : public TNamed
 
 public:
 
-   enum EType { kNone = 0, kMean, kMinStdDev, kRelativeErrorMCSum, kAbsoluteDevFromRef, kMaxValueFromBin, kMaxValueFromBinPercent, kNumTypes };
+   enum EType { kNone = 0, kMean, kMinStdDev, kRelativeErrorMCSum, kAbsoluteDevFromRef, kMaxValueFromBin, kMaxValueFromBinPercent,
+     kStdDevValueFromBinPercent,kStdErrValueFromBinPercent, kMaxStdDevValueFromBinPercent, kNumTypes };
 
    TSysError();
    TSysError(const char *name, const char *title);
@@ -48,7 +50,11 @@ public:
    Bool_t            CalculateAbsoluteDevFromRef();
    Bool_t            CalculateRelaticeErrorMCSum();
    Bool_t            CalculateMaxValueFromBin();
+
+   Bool_t            CalculateMaxStdDevValueFromBinPercent();
    Bool_t            CalculateMaxValueFromBinPercent();
+   Bool_t            CalculateStdDevValueFromBinPercent(Bool_t useStdErr=kFALSE);
+
 
 private:
    TList             *fList;        // list of TSysError
